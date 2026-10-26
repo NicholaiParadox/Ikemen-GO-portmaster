@@ -2969,6 +2969,10 @@ function start.f_selectScreen()
 							sndPlay(motif.Snd, motif.select_info.stage.done.snd[1], motif.select_info.stage.done.snd[2])
 							stageTextData = motif.select_info.stage.done.TextSpriteData
 							stageEnd = true
+							-- The stage pick is done. Modules that have to wait for it
+							-- (the editor's stage entry, which would otherwise steal
+							-- the focus and input the pick needs) act here.
+							hook.run("start.stageMenu.confirm")
 						end
 					elseif stageActiveCount < motif.select_info.stage.active.switchtime then --delay change
 						stageActiveCount = stageActiveCount + 1

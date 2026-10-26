@@ -1895,6 +1895,7 @@ function main.f_default()
 	main.coop = false --if mode should be recognized as coop
 	main.cpuSide = {false, true} --which side is controlled by CPU
 	main.dropDefeated = false --if defeated turns members should be skipped in the next match
+	main.editorStagePending = false --if the editor should open once the stage picker confirms a stage
 	main.elimination = false --if single lose should stop further lua execution
 	main.exitSelect = false --if "clearing" the mode (matchno == -1) should go back to main menu
 	main.forceChar = {nil, nil} --predefined P1/P2 characters
@@ -2005,6 +2006,24 @@ function main.f_editor(view)
 	)
 	return false
 end
+
+-- Opens the editor once the Stage Viewer's stage pick is done. Opening the
+-- built-in window at the menu entry would take the focus and the input the
+-- in-engine pick needs, so the editorstage entry only marks itself as waiting
+-- (main.editorStagePending) and this hook runs the editor after
+-- start.stageMenu.confirm (see external/script/start.lua). main.f_default()
+-- clears the flag too, so leaving the viewer without confirming a stage (cancel,
+-- esc, back to the menu) drops it; one entry click thus opens at most one window.
+hook.add("start.stageMenu.confirm", "editorStage", function()
+	if not main.editorStagePending then
+		return
+	end
+	main.editorStagePending = false
+	if gameMode() ~= 'stageviewer' then
+		return
+	end
+	main.f_editor('stage')
+end)
 
 -- Sets the [Select Info] title text for the mode being picked and remembers the
 -- mode key, so the editor can re-apply the same text after a live [Select Info]
@@ -2634,13 +2653,15 @@ main.t_itemname = {
 	['editorstage'] = function(t, item)
 		hook.run("main.t_itemname", t, item)
 		-- The community Stage Viewer module (when installed) is the in-engine
-		-- stage picker and viewport: start its mode, open the editor on its
-		-- stage view, then continue into the mode's select screen, where the
-		-- stage to edit is picked. Without the module the editor opens as
-		-- before and the game stays on the menu.
+		-- stage picker and viewport: start its mode, mark the editor as waiting,
+		-- then continue into the mode's select screen, where the stage to edit is
+		-- picked. The editor itself opens from the start.stageMenu.confirm hook
+		-- below, once the stage has been picked: opening the built-in window here
+		-- would steal the focus and input the pick needs. Without the module the
+		-- editor opens as before and the game stays on the menu.
 		if main.t_itemname.stageviewer ~= nil then
 			local next_screen = main.t_itemname.stageviewer()
-			main.f_editor('stage')
+			main.editorStagePending = true
 			return next_screen
 		end
 		main.f_editor('stage')

@@ -273,11 +273,18 @@ stage during a match is the point.
 **Title menu.** `EDITOR → STAGE` (`main.t_itemname['editorstage']` in
 `external/script/main.lua`) runs `main.t_itemname.stageviewer()` — defined by the
 community Stage Viewer module, autoloaded from `external/mods/**/*.lua` — when
-it is installed, opens the editor on `?view=stage`, and then continues into the
-mode's select screen, which is the in-engine stage picker. Without the module
-the entry only opens the editor, as before. The Stage view's `Use stage loaded
-in engine` action selects the `.def` `/api/status` reports (full path first,
-file name as fallback), so the stage picked in the game is the one being
+it is installed, and then continues into the mode's select screen, which is the
+in-engine stage picker. The editor itself is **not** opened at the entry: it
+would take the focus and the input the pick needs, so the entry only sets
+`main.editorStagePending` and the `editorStage` hook registered on
+`start.stageMenu.confirm` (`external/script/start.lua`, right after
+`stageEnd = true`) opens it on `?view=stage` once a stage has been confirmed.
+The flag is cleared when it is used and by `main.f_default()`, so cancelling
+out of the viewer drops it, and it is ignored when the confirm happens in
+another mode; one entry click opens at most one window. Without the module
+the entry opens the editor immediately, as before. The Stage view's `Use stage
+loaded in engine` action selects the `.def` `/api/status` reports (full path
+first, file name as fallback), so the stage picked in the game is the one being
 edited.
 
 ---

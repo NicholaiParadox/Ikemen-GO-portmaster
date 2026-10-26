@@ -49,8 +49,15 @@ stage loads.
 - **EDITOR → STAGE** (`main.t_itemname['editorstage']`) now runs the community
   Stage Viewer mode (`external/mods/stageviewer/stageviewer.lua`) when it is
   installed — its select screen is the in-engine stage picker and the viewer
-  match is the viewport — then opens the editor at `?view=stage`. Without the
-  module the entry only opens the editor, as before.
+  match is the viewport. The editor is not opened at the entry (the built-in
+  window would take the focus and input the pick needs): the entry sets
+  `main.editorStagePending` and the `editorStage` hook on
+  `start.stageMenu.confirm` (`external/script/start.lua`, right after
+  `stageEnd = true`) opens it at `?view=stage` once a stage has been confirmed.
+  The flag is cleared on use and by `main.f_default()` (so cancelling out of
+  the viewer drops it) and ignored outside the viewer mode, so one click
+  opens at most one window. Without the module the entry only opens the
+  editor, as before.
 
 The stage is rollback state (`state.go` clones `stageList` and the per-stage
 runtime state), so netplay and replays refuse the live apply and the reload with

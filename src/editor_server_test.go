@@ -3204,20 +3204,48 @@ func TestEditorAgainstConfiguredMotif(t *testing.T) {
 	if title.Defined == 0 {
 		t.Error("[Title Info] has no defined keys")
 	}
-	// The Editor submenu has to be declared by the motif for the menu to show it.
 	editorKeys := map[string]string{}
 	for _, k := range title.Keys {
 		editorKeys[strings.ToLower(k.Key)] = k.Value
 	}
-	for _, want := range []string{
+	want := []string{
 		"menu.itemname.editor",
 		"menu.itemname.editor.editormotif",
 		"menu.itemname.editor.editorstage",
 		"menu.itemname.editor.editorcharacter",
 		"menu.itemname.editor.back",
-	} {
-		if editorKeys[want] == "" {
-			t.Errorf("the configured motif does not declare %q", want)
+	}
+	// The Editor submenu is declared by the motif the engine ships
+	// (src/resources/defaultMotif.ini, embedded as defaultMotif), which is the
+	// motif the in-game Editor menu exists for. The configured motif is
+	// whatever this machine runs — a screenpack motif (data/kfm, mugen1, ...)
+	// needs no Editor group at all — so it is only checked for consistency: a
+	// motif that declares the group must declare all of it, or the menu shows a
+	// half-built submenu.
+	shippedText := preprocessINIContent(NormalizeNewlines(string(defaultMotif)))
+	shippedINI, err := LoadINIText(shippedText, editorINIOptions())
+	if err != nil {
+		t.Fatalf("the shipped default motif does not parse: %v", err)
+	}
+	shipped := map[string]string{}
+	for _, sec := range editorSectionsFromINI("", shippedINI, shippedText) {
+		if editorNormSection(sec.Name) != "title_info" {
+			continue
+		}
+		for _, kv := range sec.Keys {
+			shipped[strings.ToLower(kv.Key)] = kv.Value
+		}
+	}
+	for _, k := range want {
+		if shipped[k] == "" {
+			t.Errorf("the shipped default motif does not declare %q", k)
+		}
+	}
+	if editorKeys[want[0]] != "" {
+		for _, k := range want {
+			if editorKeys[k] == "" {
+				t.Errorf("the configured motif declares a partial Editor submenu: %q is missing", k)
+			}
 		}
 	}
 }
@@ -3875,11 +3903,14 @@ func TestEditorStageLiveApplyMatchesLoadStage(t *testing.T) {
 		}
 		return path
 	}
-	// A 640 wide localcoord: the ratio that would double a value is 2.
+	// A 640 wide localcoord: the ratio that would double a value is 2, so any
+	// key the live apply scaled would land at twice the loaded value below.
 	const base = "[StageInfo]\nlocalcoord = 640, 480\n"
 	const full = "[StageInfo]\nlocalcoord = 640, 480\nzoffset = 150\n" +
 		"\n[Bound]\nscreenleft = 20\nscreenright = 30\n" +
-		"\n[PlayerInfo]\nleftbound = -900\nrightbound = 900\np1startx = -100\np1facing = 0\n" +
+		"\n[PlayerInfo]\nleftbound = -900\nrightbound = 900\n" +
+		"topbound = -25\nbotbound = 25\n" +
+		"p1startx = -100\np1facing = 0\np2startx = 100\np2facing = 0\n" +
 		"\n[Camera]\nboundleft = -125\n"
 	loaded, err := loadStage(write("stages/full.def", full), true)
 	if err != nil {
@@ -3894,13 +3925,21 @@ func TestEditorStageLiveApplyMatchesLoadStage(t *testing.T) {
 			"the live apply has to be revisited", live.screenleft, live.p[0].startx)
 	}
 
+	// Every [Bound] / [PlayerInfo] key is stored exactly as the file writes it:
+	// loadStage reads them after the ratio has scaled the defaults, so the live
+	// apply must not scale them either (a scaled apply would double each value
+	// on this 640 stage).
 	for _, k := range []struct{ section, key, value string }{
 		{"Bound", "screenleft", "20"},
 		{"Bound", "screenright", "30"},
 		{"PlayerInfo", "leftbound", "-900"},
 		{"PlayerInfo", "rightbound", "900"},
+		{"PlayerInfo", "topbound", "-25"},
+		{"PlayerInfo", "botbound", "25"},
 		{"PlayerInfo", "p1startx", "-100"},
 		{"PlayerInfo", "p1facing", "0"},
+		{"PlayerInfo", "p2startx", "100"},
+		{"PlayerInfo", "p2facing", "0"},
 		{"Camera", "boundleft", "-125"},
 		{"StageInfo", "zoffset", "150"},
 	} {
@@ -3917,9 +3956,17 @@ func TestEditorStageLiveApplyMatchesLoadStage(t *testing.T) {
 		t.Errorf("player bounds = %v/%v, loadStage gives %v/%v",
 			live.leftbound, live.rightbound, loaded.leftbound, loaded.rightbound)
 	}
+	if live.topbound != loaded.topbound || live.botbound != loaded.botbound {
+		t.Errorf("player top/bot bound = %v/%v, loadStage gives %v/%v",
+			live.topbound, live.botbound, loaded.topbound, loaded.botbound)
+	}
 	if live.p[0].startx != loaded.p[0].startx || live.p[0].facing != loaded.p[0].facing {
 		t.Errorf("p1 spawn = %d/%d, loadStage gives %d/%d",
 			live.p[0].startx, live.p[0].facing, loaded.p[0].startx, loaded.p[0].facing)
+	}
+	if live.p[1].startx != loaded.p[1].startx || live.p[1].facing != loaded.p[1].facing {
+		t.Errorf("p2 spawn = %d/%d, loadStage gives %d/%d",
+			live.p[1].startx, live.p[1].facing, loaded.p[1].startx, loaded.p[1].facing)
 	}
 	if live.stageCamera.boundleft != loaded.stageCamera.boundleft {
 		t.Errorf("camera boundleft = %d, loadStage gives %d",
@@ -3929,9 +3976,17 @@ func TestEditorStageLiveApplyMatchesLoadStage(t *testing.T) {
 		t.Errorf("zoffset = %d, loadStage gives %d",
 			live.stageCamera.zoffset, loaded.stageCamera.zoffset)
 	}
-	// The file value, not the ratio scaled one: 20 stays 20 on a 640 stage.
-	if loaded.screenleft != 20 || loaded.p[0].startx != -100 {
-		t.Fatalf("loadStage scaled a [Bound] / [PlayerInfo] file value (%d, %d)",
-			loaded.screenleft, loaded.p[0].startx)
+	// The file value, not the ratio scaled one: on this 640 stage 20 stays 20,
+	// -100 stays -100 and P2's facing 0 becomes -1 (never 0, like loadStage).
+	if loaded.screenleft != 20 || loaded.p[0].startx != -100 || loaded.p[1].startx != 100 {
+		t.Fatalf("loadStage scaled a [Bound] / [PlayerInfo] file value (%d, %d, %d)",
+			loaded.screenleft, loaded.p[0].startx, loaded.p[1].startx)
+	}
+	if loaded.topbound != -25 || loaded.botbound != 25 {
+		t.Fatalf("loadStage scaled a [PlayerInfo] float bound (%v, %v)",
+			loaded.topbound, loaded.botbound)
+	}
+	if loaded.p[0].facing != 1 || loaded.p[1].facing != -1 {
+		t.Fatalf("a facing of 0 was not normalized to %d/%d", loaded.p[0].facing, loaded.p[1].facing)
 	}
 }
