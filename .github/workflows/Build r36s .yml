@@ -43,6 +43,21 @@ jobs:
           go version
           make install
 
+      - name: Incluir SDL2 y script de arranque (sin apt en la consola)
+        run: |
+          ldd deploy/Ikemen_GO.arm64 || true
+          mkdir -p deploy/lib
+          cp -L /usr/lib/aarch64-linux-gnu/libSDL2-2.0.so.0 deploy/lib/
+          cat > deploy/ikemen.sh <<'EOF'
+          #!/bin/sh
+          cd "$(dirname "$0")"
+          export LD_LIBRARY_PATH="$PWD/lib:$LD_LIBRARY_PATH"
+          export SDL_VIDEODRIVER="${SDL_VIDEODRIVER:-kmsdrm}"
+          exec ./Ikemen_GO.arm64 "$@"
+          EOF
+          sed -i 's/^          //' deploy/ikemen.sh
+          chmod +x deploy/ikemen.sh deploy/Ikemen_GO.arm64
+
       - name: Empaquetar
         run: |
           mkdir -p dist
