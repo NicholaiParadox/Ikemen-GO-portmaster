@@ -1,0 +1,29 @@
+{
+  "version": 2,
+  "name": "ikemen.zip",
+  "items": [
+    "Ikemen GO.sh",
+    "ikemen"
+  ],
+  "items_opt": [],
+  "attr": {
+    "title": "Ikemen GO",
+    "porter": [
+      "R36S user"
+    ],
+    "desc": "Motor de juegos de pelea compatible con M.U.G.E.N, compilado para arm64.",
+    "inst": "Copia 'Ikemen GO.sh' y la carpeta 'ikemen' a la carpeta ports de la consola. Agrega tus personajes y escenarios en ikemen/chars y ikemen/stages.",
+    "genres": [
+      "fighting"
+    ],
+    "image": {},
+    "rtr": false,
+    "exp": false,
+    "arch": [
+      "aarch64"
+    ],
+    "min_glibc": "",
+    "runtime": null,
+    "reqs": []
+  }
+}
