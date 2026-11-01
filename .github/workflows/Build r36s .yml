@@ -21,7 +21,7 @@ jobs:
         run: |
           apt-get update
           apt-get install -y --no-install-recommends \
-            git ca-certificates curl wget unzip tar xz-utils \
+            git ca-certificates curl wget unzip zip tar xz-utils \
             make cmake pkg-config gcc g++ \
             libsdl2-dev libasound2-dev libegl1-mesa-dev libgles2-mesa-dev
 
@@ -58,12 +58,21 @@ jobs:
           sed -i 's/^          //' deploy/ikemen.sh
           chmod +x deploy/ikemen.sh deploy/Ikemen_GO.arm64
 
-      - name: Empaquetar
+      - name: Empaquetar (tar.gz y layout PortMaster)
         run: |
           mkdir -p dist
           tar -C deploy -czf dist/ikemen-go-r36s-arm64.tar.gz .
+          # Layout PortMaster: "Ikemen GO.sh" + carpeta ikemen/
+          mkdir -p dist/pm/ikemen
+          cp -r deploy/. dist/pm/ikemen/
+          cp "portmaster/Ikemen GO.sh" dist/pm/
+          cp portmaster/port.json dist/pm/ikemen/
+          chmod +x "dist/pm/Ikemen GO.sh" dist/pm/ikemen/Ikemen_GO.arm64
+          (cd dist/pm && zip -r -q ../ikemen-go-portmaster.zip .)
 
       - uses: actions/upload-artifact@v4
         with:
           name: ikemen-go-r36s-arm64
-          path: dist/ikemen-go-r36s-arm64.tar.gz
+          path: |
+            dist/ikemen-go-r36s-arm64.tar.gz
+            dist/ikemen-go-portmaster.zip
