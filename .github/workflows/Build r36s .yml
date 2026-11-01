@@ -1,0 +1,48 @@
+name: Build Ikemen GO (R36S / Debian 13 Trixie arm64)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master, develop]
+
+jobs:
+  build:
+    # Runner arm64 nativo (sin emulación QEMU)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 180
+    container:
+      image: debian:trixie
+
+    steps:
+      - name: Instalar dependencias
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            git ca-certificates curl wget unzip tar xz-utils \
+            make cmake pkg-config gcc g++ \
+            libsdl2-dev libasound2-dev libegl1-mesa-dev libgles2-mesa-dev
+
+      - uses: actions/checkout@v4
+
+      - name: Instalar Go (la versión que pide go.mod)
+        run: |
+          GOVER="$(grep -E '^go [0-9]' go.mod | awk '{print $2}')"
+          echo "Go requerido: $GOVER"
+          curl -fsSL "https://go.dev/dl/go${GOVER}.linux-arm64.tar.gz" -o /tmp/go.tgz
+          tar -C /usr/local -xzf /tmp/go.tgz
+          echo "/usr/local/go/bin" >> "$GITHUB_PATH"
+
+      - name: Compilar y ensamblar deploy/
+        run: |
+          go version
+          make install
+
+      - name: Empaquetar
+        run: |
+          mkdir -p dist
+          tar -C deploy -czf dist/ikemen-go-r36s-arm64.tar.gz .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ikemen-go-r36s-arm64
+          path: dist/ikemen-go-r36s-arm64.tar.gz
