@@ -10,6 +10,9 @@ jobs:
     # Runner arm64 nativo (sin emulación QEMU)
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 180
+    env:
+      # Evita "error obtaining VCS status: exit status 128" dentro del contenedor
+      GOFLAGS: -buildvcs=false
     container:
       image: debian:trixie
 
@@ -23,6 +26,9 @@ jobs:
             libsdl2-dev libasound2-dev libegl1-mesa-dev libgles2-mesa-dev
 
       - uses: actions/checkout@v4
+
+      - name: Marcar el repo como seguro para git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Instalar Go (la versión que pide go.mod)
         run: |
