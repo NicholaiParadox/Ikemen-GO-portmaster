@@ -43,11 +43,11 @@ jobs:
           go version
           make install
 
-      - name: Incluir SDL2 y script de arranque (sin apt en la consola)
+      - name: Script de arranque (usa la SDL2 del sistema)
         run: |
           ldd deploy/Ikemen_GO.arm64 || true
           mkdir -p deploy/lib
-          cp -L /usr/lib/aarch64-linux-gnu/libSDL2-2.0.so.0 deploy/lib/
+          # No se incluye libSDL2: la de Trixie exige un libgbm mas nuevo que el de la consola
           cat > deploy/ikemen.sh <<'EOF'
           #!/bin/sh
           cd "$(dirname "$0")"
